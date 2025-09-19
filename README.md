@@ -95,6 +95,19 @@ architectures:
 | `mobilenet_v3_small_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model mobilenet_v3_small --weights IMAGENET1K_V1 --output mlir_outputs/mobilenet_v3_small_imagenet.mlir` |
 | `alexnet.mlir` | `python scripts/resnet18_to_mlir.py --model alexnet --output mlir_outputs/alexnet.mlir` |
 | `squeezenet1_1.mlir` | `python scripts/resnet18_to_mlir.py --model squeezenet1_1 --output mlir_outputs/squeezenet1_1.mlir` |
+| `toy/mobilenet_v3_small_64x64.mlir` | `python scripts/export_model_suites.py --suite toy --output-root mlir_outputs` |
+| `toy/squeezenet1_1_64x64.mlir` | `python scripts/export_model_suites.py --suite toy --output-root mlir_outputs` |
+| `sota/resnet50_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model resnet50 --weights IMAGENET1K_V2 --output mlir_outputs/sota/resnet50_imagenet.mlir` |
+| `sota/resnet152_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model resnet152 --weights IMAGENET1K_V2 --output mlir_outputs/sota/resnet152_imagenet.mlir` |
+| `sota/convnext_tiny_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model convnext_tiny --weights ConvNeXt_Tiny_Weights.IMAGENET1K_V1 --output mlir_outputs/sota/convnext_tiny_imagenet.mlir` |
+| `sota/convnext_base_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model convnext_base --weights ConvNeXt_Base_Weights.IMAGENET1K_V1 --output mlir_outputs/sota/convnext_base_imagenet.mlir` |
+| `sota/convnext_large_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model convnext_large --weights ConvNeXt_Large_Weights.IMAGENET1K_V1 --output mlir_outputs/sota/convnext_large_imagenet.mlir` |
+| `sota/efficientnet_v2_s_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model efficientnet_v2_s --weights EfficientNet_V2_S_Weights.IMAGENET1K_V1 --output mlir_outputs/sota/efficientnet_v2_s_imagenet.mlir` |
+| `sota/efficientnet_v2_l_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model efficientnet_v2_l --weights EfficientNet_V2_L_Weights.IMAGENET1K_V1 --height 480 --width 480 --output mlir_outputs/sota/efficientnet_v2_l_imagenet.mlir` |
+| `sota/efficientnet_b7_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model efficientnet_b7 --weights EfficientNet_B7_Weights.IMAGENET1K_V1 --height 600 --width 600 --output mlir_outputs/sota/efficientnet_b7_imagenet.mlir` |
+| `sota/mobilenet_v3_large_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model mobilenet_v3_large --weights MobileNet_V3_Large_Weights.IMAGENET1K_V2 --output mlir_outputs/sota/mobilenet_v3_large_imagenet.mlir` |
+| `sota/resnext101_64x4d_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model resnext101_64x4d --weights ResNeXt101_64X4D_Weights.IMAGENET1K_V1 --output mlir_outputs/sota/resnext101_64x4d_imagenet.mlir` |
+| `sota/wide_resnet101_2_imagenet.mlir` | `python scripts/resnet18_to_mlir.py --model wide_resnet101_2 --weights Wide_ResNet101_2_Weights.IMAGENET1K_V2 --output mlir_outputs/sota/wide_resnet101_2_imagenet.mlir` |
 
 These examples demonstrate how the script handles different classifier head
 layouts and optional pretrained weights. Re-run any command above to refresh the

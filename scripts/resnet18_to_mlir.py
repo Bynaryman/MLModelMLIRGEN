@@ -32,6 +32,11 @@ except ImportError as exc:  # pragma: no cover - import guard
         "instructions."
     ) from exc
 
+try:  # pragma: no cover - optional dependency
+    from torchvision import ops as tv_ops
+except Exception:
+    tv_ops = None
+
 
 try:
     _COMPILE_SUPPORTS_EXPORTED_NAME = (
@@ -224,6 +229,8 @@ def _instantiate_model(model_name: str, weights, num_classes: Optional[int]) -> 
                 f"Model '{model_name}' does not expose a replaceable '.fc' or"
                 " '.classifier' module."
             )
+
+    _strip_training_only_modules(model)
     model.eval()
     return model
 
@@ -253,6 +260,29 @@ def _replace_classification_head(module: nn.Module, num_classes: int) -> bool:
                     return True
 
     return False
+
+
+# ---------------------------------------------------------------------------
+# Model cleanup helpers
+# ---------------------------------------------------------------------------
+
+
+def _strip_training_only_modules(module: nn.Module) -> None:
+    """Simplify modules that introduce training-specific control flow."""
+
+    if tv_ops is None:
+        return
+
+    stochastic_depth_cls = getattr(tv_ops, "StochasticDepth", None)
+
+    def _recurse(parent: nn.Module) -> None:
+        for name, child in list(parent.named_children()):
+            if stochastic_depth_cls is not None and isinstance(child, stochastic_depth_cls):
+                setattr(parent, name, nn.Identity())
+            else:
+                _recurse(child)
+
+    _recurse(module)
 
 
 # ---------------------------------------------------------------------------
