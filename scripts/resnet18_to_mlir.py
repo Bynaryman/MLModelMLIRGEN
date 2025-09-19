@@ -5,22 +5,30 @@ This script builds a ResNet-18 network in PyTorch and lowers it to the
 minimal, dependency-light example of using torch-mlir for model conversion.
 """
 
-from __future__ import annotations
-
 import argparse
+import inspect
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Type
 
 import torch
 from torch import nn
 
 try:
     import torch_mlir
+    from torch_mlir import ir
 except ImportError as exc:  # pragma: no cover - import guard
     raise SystemExit(
         "torch-mlir must be installed to run this script. See "
         "https://github.com/llvm/torch-mlir for installation instructions."
     ) from exc
+
+
+try:
+    _COMPILE_SUPPORTS_EXPORTED_NAME = (
+        "exported_name" in inspect.signature(torch_mlir.compile).parameters
+    )
+except (ValueError, TypeError):  # pragma: no cover - defensive
+    _COMPILE_SUPPORTS_EXPORTED_NAME = False
 
 
 # ---------------------------------------------------------------------------
@@ -93,7 +101,7 @@ class ResNet(nn.Module):
 
     def __init__(
         self,
-        block: type[BasicBlock],
+        block: Type[BasicBlock],
         layers: Sequence[int],
         num_classes: int = 1000,
         norm_layer: Optional[nn.Module] = None,
@@ -124,7 +132,7 @@ class ResNet(nn.Module):
 
     def _make_layer(
         self,
-        block: type[BasicBlock],
+        block: Type[BasicBlock],
         planes: int,
         blocks: int,
         stride: int = 1,
@@ -233,6 +241,33 @@ def build_example_inputs(batch: int, height: int, width: int) -> Sequence[torch.
     return (example,)
 
 
+def _maybe_rename_exported_function(
+    compiled_module: ir.Module, exported_name: str
+) -> None:
+    """Rename the exported entry function if the API lacks direct support."""
+
+    if exported_name == "forward":
+        return
+
+    new_name_attr = ir.StringAttr.get(exported_name, context=compiled_module.context)
+    module_block = compiled_module.operation.regions[0].blocks[0]
+
+    for op in module_block.operations:
+        if op.operation.name != "func.func":
+            continue
+        for attr in op.attributes:
+            if attr.name != "sym_name":
+                continue
+            sym_attr = attr.attr
+            if isinstance(sym_attr, ir.StringAttr):
+                if sym_attr.value == exported_name:
+                    return
+                if sym_attr.value == "forward":
+                    op.attributes["sym_name"] = new_name_attr
+                    return
+            break
+
+
 def compile_to_linalg_on_tensors(
     module: torch.nn.Module,
     example_inputs: Sequence[torch.Tensor],
@@ -240,13 +275,16 @@ def compile_to_linalg_on_tensors(
     emit_debug_info: bool,
 ) -> str:
     scripted_module = torch.jit.script(module)
-
-    compiled = torch_mlir.compile(
-        scripted_module,
-        example_inputs,
+    compile_kwargs = dict(
         output_type=torch_mlir.OutputType.LINALG_ON_TENSORS,
-        exported_name=exported_name,
     )
+    if _COMPILE_SUPPORTS_EXPORTED_NAME:
+        compile_kwargs["exported_name"] = exported_name
+
+    compiled = torch_mlir.compile(scripted_module, example_inputs, **compile_kwargs)
+
+    if not _COMPILE_SUPPORTS_EXPORTED_NAME:
+        _maybe_rename_exported_function(compiled, exported_name)
 
     return compiled.operation.get_asm(
         large_elements_limit=10,

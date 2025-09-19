@@ -35,3 +35,12 @@ python scripts/resnet18_to_mlir.py \
 
 Use `--emit-debug-info` to include source locations and type aliases in the
 resulting MLIR text.
+
+## Generated MLIR sample
+
+The repository includes a reference MLIR module produced with the default
+settings at `mlir_outputs/resnet18.mlir`. Regenerate it with:
+
+```bash
+python scripts/resnet18_to_mlir.py --output mlir_outputs/resnet18.mlir
+```
