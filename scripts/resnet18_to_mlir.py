@@ -23,6 +23,26 @@ except ImportError as exc:  # pragma: no cover - import guard
         "https://github.com/llvm/torch-mlir for installation instructions."
     ) from exc
 
+_TORCH_MLIR_OUTPUT_TYPE = None
+_HAS_TORCH_MLIR_COMPILE = hasattr(torch_mlir, "compile")
+if _HAS_TORCH_MLIR_COMPILE:
+    _TORCH_MLIR_OUTPUT_TYPE = getattr(torch_mlir, "OutputType", None)
+    if _TORCH_MLIR_OUTPUT_TYPE is None:  # pragma: no cover - defensive
+        raise SystemExit(
+            "The installed torch-mlir build does not expose OutputType. "
+            "Upgrade or downgrade torch-mlir to a compatible release."
+        )
+    torch_mlir_fx = None
+else:  # pragma: no cover - exercised via runtime depending on version
+    try:
+        from torch_mlir import fx as torch_mlir_fx
+        from torch_mlir.compiler_utils import OutputType as _TORCH_MLIR_OUTPUT_TYPE
+    except ImportError as exc:
+        raise SystemExit(
+            "The installed torch-mlir build is missing the FX importer APIs "
+            "required by this script. Please upgrade torch-mlir."
+        ) from exc
+
 try:
     import torchvision.models as tv_models
 except ImportError as exc:  # pragma: no cover - import guard
@@ -37,12 +57,15 @@ try:  # pragma: no cover - optional dependency
 except Exception:
     tv_ops = None
 
-try:
-    _COMPILE_SUPPORTS_EXPORTED_NAME = (
-        "exported_name" in inspect.signature(torch_mlir.compile).parameters
-    )
-except (ValueError, TypeError):  # pragma: no cover - defensive
-    _COMPILE_SUPPORTS_EXPORTED_NAME = False
+if _HAS_TORCH_MLIR_COMPILE:
+    try:
+        _COMPILE_SUPPORTS_EXPORTED_NAME = (
+            "exported_name" in inspect.signature(torch_mlir.compile).parameters
+        )
+    except (ValueError, TypeError):  # pragma: no cover - defensive
+        _COMPILE_SUPPORTS_EXPORTED_NAME = False
+else:
+    _COMPILE_SUPPORTS_EXPORTED_NAME = True
 
 
 # ---------------------------------------------------------------------------
@@ -338,19 +361,33 @@ def compile_to_linalg_on_tensors(
     exported_name: str,
     emit_debug_info: bool,
 ) -> str:
-    scripted_module = torch.jit.script(module)
-    compile_kwargs = dict(
-        output_type=torch_mlir.OutputType.LINALG_ON_TENSORS,
-    )
-    if _COMPILE_SUPPORTS_EXPORTED_NAME:
-        compile_kwargs["exported_name"] = exported_name
+    inputs_tuple = tuple(example_inputs)
+    if _HAS_TORCH_MLIR_COMPILE:
+        scripted_module = torch.jit.script(module)
+        compile_kwargs = dict(
+            output_type=_TORCH_MLIR_OUTPUT_TYPE.LINALG_ON_TENSORS,
+        )
+        if _COMPILE_SUPPORTS_EXPORTED_NAME:
+            compile_kwargs["exported_name"] = exported_name
 
-    compiled = torch_mlir.compile(scripted_module, example_inputs, **compile_kwargs)
+        compiled_module = torch_mlir.compile(
+            scripted_module, inputs_tuple, **compile_kwargs
+        )
+        if not _COMPILE_SUPPORTS_EXPORTED_NAME:
+            _maybe_rename_exported_function(compiled_module, exported_name)
+    else:
+        if torch_mlir_fx is None:  # pragma: no cover - defensive
+            raise SystemExit(
+                "torch-mlir FX importer APIs not available; cannot export model."
+            )
+        compiled_module = torch_mlir_fx.export_and_import(
+            module,
+            *inputs_tuple,
+            output_type=_TORCH_MLIR_OUTPUT_TYPE.LINALG_ON_TENSORS,
+            func_name=exported_name,
+        )
 
-    if not _COMPILE_SUPPORTS_EXPORTED_NAME:
-        _maybe_rename_exported_function(compiled, exported_name)
-
-    return compiled.operation.get_asm(
+    return compiled_module.operation.get_asm(
         large_elements_limit=10,
         enable_debug_info=emit_debug_info,
         print_generic_op_form=False,
