@@ -8,21 +8,39 @@ classification models from
 
 ## Requirements
 
-* Python 3.9+
-* [PyTorch](https://pytorch.org/)
-* [torchvision](https://pytorch.org/vision/stable/index.html)
-* [torch-mlir](https://github.com/llvm/torch-mlir)
+Torch-MLIR distributes pre-built "snapshot" wheels that target specific PyTorch
+nightly builds. The scripts in this repository were validated with the
+following environment:
 
-Install the dependencies with your preferred package manager, for example:
+* Python 3.11.9 (Torch-MLIR wheels currently support Python 3.10/3.11)
+* `torch==2.10.0.dev20250921+cpu`
+* `torchvision==0.25.0.dev20250921+cpu`
+* `torch-mlir==20250921.577`
+
+Create an isolated environment with a Python 3.11 interpreter and install the
+matching wheels so the packages stay in sync:
 
 ```bash
-pip install torch torchvision torch-mlir
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+pip install --pre \
+  torch==2.10.0.dev20250921+cpu \
+  torchvision==0.25.0.dev20250921+cpu \
+  torch-mlir==20250921.577 \
+  --extra-index-url https://download.pytorch.org/whl/nightly/cpu \
+  -f https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels
 ```
+
+The `pip install` invocation downloads all three wheels from their respective
+nightly indices, ensuring the PyTorch and Torch-MLIR commits match.
 
 ## Usage
 
-The script defaults to `resnet18`, but any torchvision architecture can be
-selected with `--model` and, optionally, pretrained weights via `--weights`.
+Activate the virtual environment created in the setup step (`source
+.venv/bin/activate`) before running the helper scripts. The exporter defaults to
+`resnet18`, but any torchvision architecture can be selected with `--model`
+and, optionally, pretrained weights via `--weights`.
 
 ```bash
 # Generate MLIR for the default ResNet-18 model
